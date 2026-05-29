@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CO Connectée - v6</title>
+  <style>
+    :root {
+      --bg:#3a5a40; --panel:#ffffff; --soft:#eef4eb; --primary:#588157; --dark:#344e41;
+      --accent:#f4a261; --danger:#c1121f; --border:#c8d2c4; --muted:#6b7280;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Segoe UI,Tahoma,Verdana,sans-serif; background:var(--bg); color:#1f2937; }
+    .container { max-width:1150px; margin:22px auto; padding:22px; background:rgba(255,255,255,.98); border-radius:18px; box-shadow:0 12px 30px rgba(0,0,0,.22); border:2px solid var(--primary); }
+    h1,h2,h3 { color:var(--dark); margin-top:0; }
+    h1 { text-align:center; margin-bottom:18px; }
+    .topbar { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+    .view-btn,.control-btn,.success-btn,.danger-btn,.secondary-btn,.primary-submit { border:none; border-radius:10px; padding:13px 18px; font-weight:700; cursor:pointer; }
+    .view-btn { background:#dce6d8; color:var(--dark); }
+    .view-btn.active { background:var(--dark); color:#fff; }
+    .control-btn { background:var(--accent); color:#fff; }
+    .success-btn { background:var(--primary); color:#fff; }
+    .secondary-btn { background:#dce6d8; color:var(--dark); }
+    .danger-btn { background:var(--danger); color:#fff; }
+    button:disabled { opacity:.55; cursor:not-allowed; }
+    .hidden { display:none !important; }
+    .banner { text-align:center; padding:12px 16px; margin-bottom:16px; border-radius:12px; color:#fff; background:#6b7280; font-weight:700; }
+    .panel, .form-section { background:var(--soft); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:18px; }
+    .grid-3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+    .grid-2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+    label { display:block; margin-bottom:8px; font-weight:700; color:var(--dark); }
+    input, select { width:100%; padding:12px; border:1px solid #b8c3b3; border-radius:10px; background:#fff; font-size:1rem; }
+    .time-input-group { display:flex; gap:10px; align-items:center; max-width:320px; }
+    .time-input-group span { font-weight:800; font-size:1.4rem; color:var(--dark); }
+    .mini-note { color:var(--muted); font-size:.92rem; margin-top:6px; }
+    .tag-group { border:2px dashed var(--primary); border-radius:12px; padding:12px; margin-bottom:12px; background:rgba(255,255,255,.5); }
+    .tag-inputs { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; align-items:end; }
+    .primary-submit { width:100%; padding:16px; background:var(--primary); color:#fff; font-size:1.08rem; }
+    .message { margin:10px 0; font-weight:700; }
+    .error { color:#b91c1c; }
+    .success { color:#166534; }
+    #resultsList { list-style:none; padding:0; margin:14px 0 0; }
+    #resultsList li { padding:10px 12px; border-radius:10px; margin-bottom:8px; font-weight:700; }
+    .result-correct { background:#d8f3dc; color:#1b4332; }
+    .result-incorrect { background:#ffccd5; color:#7f1d1d; }
+    .result-missing { background:#fff3cd; color:#7a5c00; }
+    #scoreArea { margin-top:14px; padding:15px; border-radius:12px; background:#e9f2e6; font-weight:800; text-align:center; color:var(--dark); }
+    .dashboard-controls { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:14px; }
+    .dashboard-layout { display:grid; grid-template-columns:1.05fr 1.45fr; gap:16px; }
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th, td { border:1px solid #e5e7eb; padding:10px; text-align:left; vertical-align:middle; }
+    th { background:var(--primary); color:#fff; }
+    tr:nth-child(even) td { background:#f8faf8; }
+    .pill { display:inline-block; padding:6px 10px; border-radius:999px; font-size:.85rem; font-weight:700; }
+    .pill.active { background:#d8f3dc; color:#166534; }
+    .pill.inactive { background:#fee2e2; color:#991b1b; }
+    .empty-box { padding:14px; border:1px dashed #b9c5b6; border-radius:12px; background:rgba(255,255,255,.55); color:var(--muted); }
+    @media (max-width:900px) { .dashboard-layout { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🌲 Course d'Orientation Connectée 🧭</h1>
+
+  <div class="topbar">
+    <button id="studentViewBtn" class="view-btn active">📱 Vue Élève</button>
+    <button id="teacherViewBtn" class="view-btn" onclick="openTeacherAccess()">🖥️ Vue Professeur</button>
+  </div>
+
+  <p id="globalError" class="message error" style="text-align:center;"></p>
+
+  <section id="studentView">
+    <div id="activeLessonBanner" class="banner">Connexion en cours...</div>
+
+    <form id="tagForm">
+      <div class="form-section">
+        <h2>Identification</h2>
+        <div class="grid-3">
+          <div>
+            <label for="classeSelect">Classe</label>
+            <select id="classeSelect" required>
+              <option value="">Chargement des classes...</option>
+            </select>
+          </div>
+          <div>
+            <label for="teamSelect">Élève</label>
+            <select id="teamSelect" required>
+              <option value="">Choisir d'abord une classe</option>
+            </select>
+          </div>
+          <div>
+            <label for="parcoursSelect">Parcours</label>
+            <select id="parcoursSelect" required></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2>Temps de course</h2>
+        <label>Durée totale (MM:SS)</label>
+        <div class="time-input-group">
+          <input type="number" id="durationMinutes" min="0" max="99" placeholder="Min" required>
+          <span>:</span>
+          <input type="number" id="durationSeconds" min="0" max="59" placeholder="Sec" required>
+        </div>
+        <p class="mini-note">Exemple : 12 min 34 sec</p>
+      </div>
+
+      <div class="form-section">
+        <h2>Saisie des balises (5 max)</h2>
+        <div id="tagEntriesContainer">
+          <div class="tag-group"><div class="tag-inputs">
+            <div><label for="baliseNum0">Balise 1 - Numéro</label><input type="number" id="baliseNum0" min="1" max="110" placeholder="Ex : 42"></div>
+            <div><label for="baliseCouleur0">Couleur</label><select id="baliseCouleur0"><option value="">Choisir</option><option value="NOIR">NOIR</option><option value="ORANGE">ORANGE</option><option value="VERT">VERT</option><option value="ROSE">ROSE</option><option value="GRIS">GRIS</option><option value="ROUGE">ROUGE</option><option value="MARRON">MARRON</option><option value="BLEU">BLEU</option></select></div>
+            <div><label for="baliseCode0">Code</label><input type="text" id="baliseCode0" placeholder="Ex : 5B"></div>
+          </div></div>
+          <div class="tag-group"><div class="tag-inputs">
+            <div><label for="baliseNum1">Balise 2 - Numéro</label><input type="number" id="baliseNum1" min="1" max="110" placeholder="Ex : 42"></div>
+            <div><label for="baliseCouleur1">Couleur</label><select id="baliseCouleur1"><option value="">Choisir</option><option value="NOIR">NOIR</option><option value="ORANGE">ORANGE</option><option value="VERT">VERT</option><option value="ROSE">ROSE</option><option value="GRIS">GRIS</option><option value="ROUGE">ROUGE</option><option value="MARRON">MARRON</option><option value="BLEU">BLEU</option></select></div>
+            <div><label for="baliseCode1">Code</label><input type="text" id="baliseCode1" placeholder="Ex : 5B"></div>
+          </div></div>
+          <div class="tag-group"><div class="tag-inputs">
+            <div><label for="baliseNum2">Balise 3 - Numéro</label><input type="number" id="baliseNum2" min="1" max="110" placeholder="Ex : 42"></div>
+            <div><label for="baliseCouleur2">Couleur</label><select id="baliseCouleur2"><option value="">Choisir</option><option value="NOIR">NOIR</option><option value="ORANGE">ORANGE</option><option value="VERT">VERT</option><option value="ROSE">ROSE</option><option value="GRIS">GRIS</option><option value="ROUGE">ROUGE</option><option value="MARRON">MARRON</option><option value="BLEU">BLEU</option></select></div>
+            <div><label for="baliseCode2">Code</label><input type="text" id="baliseCode2" placeholder="Ex : 5B"></div>
+          </div></div>
+          <div class="tag-group"><div class="tag-inputs">
+            <div><label for="baliseNum3">Balise 4 - Numéro</label><input type="number" id="baliseNum3" min="1" max="110" placeholder="Ex : 42"></div>
+            <div><label for="baliseCouleur3">Couleur</label><select id="baliseCouleur3"><option value="">Choisir</option><option value="NOIR">NOIR</option><option value="ORANGE">ORANGE</option><option value="VERT">VERT</option><option value="ROSE">ROSE</option><option value="GRIS">GRIS</option><option value="ROUGE">ROUGE</option><option value="MARRON">MARRON</option><option value="BLEU">BLEU</option></select></div>
+            <div><label for="baliseCode3">Code</label><input type="text" id="baliseCode3" placeholder="Ex : 5B"></div>
+          </div></div>
+          <div class="tag-group"><div class="tag-inputs">
+            <div><label for="baliseNum4">Balise 5 - Numéro</label><input type="number" id="baliseNum4" min="1" max="110" placeholder="Ex : 42"></div>
+            <div><label for="baliseCouleur4">Couleur</label><select id="baliseCouleur4"><option value="">Choisir</option><option value="NOIR">NOIR</option><option value="ORANGE">ORANGE</option><option value="VERT">VERT</option><option value="ROSE">ROSE</option><option value="GRIS">GRIS</option><option value="ROUGE">ROUGE</option><option value="MARRON">MARRON</option><option value="BLEU">BLEU</option></select></div>
+            <div><label for="baliseCode4">Code</label><input type="text" id="baliseCode4" placeholder="Ex : 5B"></div>
+          </div></div>
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn" class="primary-submit">🚀 Vérifier et envoyer le résultat</button>
+    </form>
+
+    <div id="resultsContainer"><ul id="resultsList"></ul></div>
+    <div id="scoreArea" class="hidden"></div>
+  </section>
+
+  <section id="teacherLoginContainer" class="hidden form-section">
+    <h2>Accès professeur</h2>
+    <p>Entrez le code d'accès professeur.</p>
+    <label for="teacherCodeInput">Code</label>
+    <input type="password" id="teacherCodeInput" autocomplete="off" placeholder="Entrez le code">
+    <p id="teacherCodeError" class="message error"></p>
+    <button type="button" id="teacherCodeSubmitBtn" class="success-btn">Valider le code</button>
+  </section>
+
+  <section id="teacherDashboard" class="hidden">
+    <div class="panel">
+      <h2>Tableau de bord professeur</h2>
+      <div id="lessonStatus" class="pill inactive">Aucune leçon active</div>
+      <div class="dashboard-controls" style="margin-top:12px;">
+        <button id="startLessonBtn" class="control-btn">▶️ Démarrer une leçon</button>
+        <button id="loadHistoryBtn" class="secondary-btn">🕘 Historique</button>
+        <button id="exportCsvBtn" class="secondary-btn" disabled>📊 Export CSV</button>
+        <button id="exportPdfBtn" class="secondary-btn" disabled>📄 Export PDF</button>
+        <button id="closeLessonBtn" class="danger-btn" disabled>⛔ Clôturer la séance</button>
+      </div>
+    </div>
+
+    <div class="dashboard-layout">
+      <div>
+        <div class="panel">
+          <h3>Gestion des classes Pronote</h3>
+          <div class="grid-2">
+            <div>
+              <label for="newClassNameInput">Nom de la classe</label>
+              <input type="text" id="newClassNameInput" placeholder="Ex : 4A">
+            </div>
+            <div>
+              <label for="classCsvInput">Fichier CSV Pronote</label>
+              <input type="file" id="classCsvInput" accept=".csv,.txt">
+            </div>
+          </div>
+          <div class="dashboard-controls" style="justify-content:flex-start; margin-top:12px; margin-bottom:0;">
+            <button id="createClassBtn" class="success-btn">➕ Créer / mettre à jour la classe</button>
+            <button id="refreshClassesBtn" class="secondary-btn">🔄 Actualiser</button>
+          </div>
+          <p class="mini-note">Les classes et les élèves sont enregistrés en ligne dans Firestore.</p>
+          <p id="classManagerMessage" class="message"></p>
+        </div>
+
+        <div class="panel">
+          <h3>Classes enregistrées</h3>
+          <div id="classesListContainer" class="empty-box">Aucune classe enregistrée.</div>
+        </div>
+
+        <div id="historyPanel" class="panel hidden">
+          <h3>Historique des leçons</h3>
+          <div style="margin-bottom:10px;"><button id="closeHistoryBtn" class="secondary-btn">Fermer</button></div>
+          <div style="overflow:auto;">
+            <table>
+              <thead><tr><th>Nom</th><th>Date</th><th>Statut</th><th>Action</th></tr></thead>
+              <tbody id="historyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h3>Résultats</h3>
+          <div style="overflow:auto;">
+            <table>
+              <thead>
+                <tr><th>Classe</th><th>Élève</th><th>Parcours</th><th>Score</th><th>Temps</th><th>Heure</th></tr>
+              </thead>
+              <tbody id="resultsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script>
+const DONNEES_SHEET = { /* Base de données des balises */
+            8: { BLEU: "F2", NOIR: "G1", ORANGE: "RR", VERT: "CL", ROSE: "2F", GRIS: "LX", ROUGE: "7L", MARRON: "6C" },
+9: { BLEU: "8H", NOIR: "MV", ORANGE: "HA", VERT: "O8", ROSE: "BL", GRIS: "BP", ROUGE: "3I", MARRON: "PT" },
+10: { BLEU: "NK", NOIR: "I5", ORANGE: "A5", VERT: "7T", ROSE: "CX", GRIS: "B6", ROUGE: "1T", MARRON: "6J" },
+11: { BLEU: "T8", NOIR: "HC", ORANGE: "7T", VERT: "8E", ROSE: "94", GRIS: "CV", ROUGE: "0R", "MARRON": "E2" },
+12: { BLEU: "JA", NOIR: "0E", ORANGE: "V8", VERT: "KC", ROSE: "5D", GRIS: "BY", ROUGE: "25", MARRON: "H5" },
+13: { BLEU: "VQ", NOIR: "0Y", ORANGE: "GO", VERT: "L0", ROSE: "YM", GRIS: "YH", ROUGE: "CS", MARRON: "F0" },
+14: { BLEU: "28", NOIR: "8A", ORANGE: "QU", VERT: "I7", ROSE: "YI", GRIS: "KK", ROUGE: "LZ", MARRON: "TP" },
+15: { BLEU: "ZR", NOIR: "4E", ORANGE: "PK", VERT: "D5", ROSE: "I8", GRIS: "RQ", ROUGE: "U6", MARRON: "4T" },
+16: { BLEU: "93", NOIR: "2A", ORANGE: "JP", VERT: "C1", ROSE: "TM", GRIS: "UF", ROUGE: "LA", MARRON: "EI" },
+17: { BLEU: "K3", NOIR: "U7", ORANGE: "VP", VERT: "KM", ROSE: "S8", GRIS: "9C", ROUGE: "NC", MARRON: "9W" },
+18: { BLEU: "CO", NOIR: "MV", ORANGE: "63", VERT: "RD", ROSE: "19", GRIS: "VW", ROUGE: "IG", MARRON: "TA" },
+19: { BLEU: "IA", NOIR: "9T", ORANGE: "P7", VERT: "QP", ROSE: "3E", GRIS: "GC", ROUGE: "5O", MARRON: "ZG" },
+20: { BLEU: "KC", NOIR: "ZB", ORANGE: "F2", VERT: "4I", ROSE: "C3", GRIS: "EY", ROUGE: "MF", MARRON: "O7" },
+21: { BLEU: "BO", NOIR: "EM", ORANGE: "IT", VERT: "DN", ROSE: "AV", GRIS: "K5", ROUGE: "RP", MARRON: "CY" },
+22: { BLEU: "AE", NOIR: "JQ", ORANGE: "II", VERT: "LM", ROSE: "0T", GRIS: "JR", ROUGE: "9U", MARRON: "V9" },
+23: { BLEU: "XF", NOIR: "9D", ORANGE: "ME", VERT: "PV", ROSE: "B1", GRIS: "SX", ROUGE: "1M", MARRON: "8N" },
+24: { BLEU: "A8", NOIR: "6L", ORANGE: "6K", VERT: "2H", ROSE: "IT", GRIS: "33", ROUGE: "91", MARRON: "2D" },
+25: { BLEU: "B0", NOIR: "3G", ORANGE: "5V", VERT: "9V", ROSE: "AT", GRIS: "RY", ROUGE: "HZ", MARRON: "IG" },
+26: { BLEU: "T0", NOIR: "FD", ORANGE: "82", VERT: "XC", ROSE: "G5", GRIS: "A0", ROUGE: "JK", MARRON: "K5" },
+27: { BLEU: "QP", NOIR: "82", ORANGE: "VV", VERT: "GU", ROSE: "XK", GRIS: "OZ", ROUGE: "NB", MARRON: "GQ" },
+28: { BLEU: "IN", NOIR: "W9", ORANGE: "CZ", VERT: "CJ", ROSE: "0A", GRIS: "F1", ROUGE: "RN", MARRON: "JE" },
+29: { BLEU: "OX", NOIR: "57", ORANGE: "T7", VERT: "KB", ROSE: "6", GRIS: "VD", ROUGE: "YT", MARRON: "EL" },
+30: { BLEU: "PT", NOIR: "95", ORANGE: "LU", VERT: "M5", ROSE: "X0", GRIS: "G8", ROUGE: "PM", MARRON: "DJ" },
+31: { BLEU: "5V", NOIR: "PF", ORANGE: "WM", VERT: "DQ", ROSE: "28", GRIS: "EV", ROUGE: "PE", MARRON: "QL" },
+32: { BLEU: "UI", NOIR: "52", ORANGE: "VR", VERT: "VF", ROSE: "8V", GRIS: "46", ROUGE: "FP", MARRON: "BJ" },
+33: { BLEU: "RJ", NOIR: "RI", ORANGE: "FL", VERT: "SG", ROSE: "WR", GRIS: "MF", ROUGE: "GP", MARRON: "93" },
+34: { BLEU: "C4", NOIR: "HC", ORANGE: "UC", VERT: "PV", ROSE: "IH", GRIS: "AP", ROUGE: "YL", MARRON: "JL" },
+35: { BLEU: "GF", NOIR: "BZ", ORANGE: "G0", VERT: "3V", ROSE: "LK", GRIS: "VD", ROUGE: "N1", MARRON: "4L" },
+36: { BLEU: "VQ", NOIR: "P3", ORANGE: "3Y", VERT: "9D", ROSE: "85", GRIS: "8J", ROUGE: "0S", MARRON: "SG" },
+37: { BLEU: "DZ", NOIR: "O3", ORANGE: "9B", VERT: "ZP", ROSE: "S8", GRIS: "ST", ROUGE: "HD", MARRON: "5T" },
+58: { BLEU: "1X", NOIR: "2C", ORANGE: "3A", VERT: "8N", ROSE: "4T", GRIS: "6S", ROUGE: "5K", MARRON: "7W" },
+59: { BLEU: "4B", NOIR: "7F", ORANGE: "6Z", VERT: "1M", ROSE: "2J", GRIS: "8P", ROUGE: "3U", MARRON: "5O" },
+60: { BLEU: "2N", NOIR: "5R", ORANGE: "8L", VERT: "4D", ROSE: "7E", GRIS: "1G", ROUGE: "6C", MARRON: "3Y" },
+61: { BLEU: "7M", NOIR: "3H", ORANGE: "1K", VERT: "2W", ROSE: "5A", GRIS: "4X", ROUGE: "8F", MARRON: "6T" },
+62: { BLEU: "5D", NOIR: "6S", ORANGE: "4U", VERT: "7O", ROSE: "3Z", GRIS: "2B", ROUGE: "1R", MARRON: "8J" },
+63: { BLEU: "3W", NOIR: "8P", ORANGE: "2C", VERT: "5Y", ROSE: "6L", GRIS: "7N", ROUGE: "4H", MARRON: "1E" },
+64: { BLEU: "1O", NOIR: "3G", ORANGE: "2F", VERT: "6T", ROSE: "8K", GRIS: "7M", ROUGE: "5S", MARRON: "4A" },
+65: { BLEU: "3Y", NOIR: "2X", ORANGE: "8R", VERT: "5J", ROSE: "7U", GRIS: "6D", ROUGE: "4P", MARRON: "1Z" },
+66: { BLEU: "2T", NOIR: "8B", ORANGE: "7H", VERT: "4E", ROSE: "6C", GRIS: "5W", ROUGE: "1G", MARRON: "3L" },
+67: { BLEU: "8J", NOIR: "7N", ORANGE: "6S", VERT: "1A", ROSE: "5F", GRIS: "4O", ROUGE: "3X", MARRON: "2K" },
+69: { BLEU: "6A", NOIR: "5D", ORANGE: "4G", VERT: "2L", ROSE: "1H", GRIS: "3T", ROUGE: "8N", MARRON: "7C" },
+70: { BLEU: "5Z", NOIR: "4W", ORANGE: "1X", VERT: "8K", ROSE: "3S", GRIS: "2J", ROUGE: "7M", MARRON: "6F" },
+72: { BLEU: "1K", NOIR: "3Y", ORANGE: "6N", VERT: "4C", ROSE: "8G", GRIS: "2A", ROUGE: "7W", MARRON: "5H" },
+74: { BLEU: "5C", NOIR: "7J", ORANGE: "2D", VERT: "8R", ROSE: "3B", GRIS: "1L", ROUGE: "4Y", MARRON: "6P" },
+75: { BLEU: "8F", NOIR: "1E", ORANGE: "7W", VERT: "6H", ROSE: "2N", GRIS: "4K", ROUGE: "5T", MARRON: "3G" },
+76: { BLEU: "6R", NOIR: "4A", ORANGE: "1O", VERT: "3S", ROSE: "7M", GRIS: "5U", ROUGE: "8J", MARRON: "2X" },
+77: { BLEU: "3H", NOIR: "5Z", ORANGE: "4Y", VERT: "2P", ROSE: "1D", GRIS: "8C", ROUGE: "6E", MARRON: "7B" },
+78: { BLEU: "2S", NOIR: "8L", ORANGE: "5T", VERT: "7G", ROSE: "4W", GRIS: "6F", ROUGE: "3A", MARRON: "1N" },
+79: { BLEU: "7P", NOIR: "6K", ORANGE: "8J", VERT: "1X", ROSE: "5O", GRIS: "3R", ROUGE: "2Z", MARRON: "4M" },
+80: { BLEU: "2G", NOIR: "4U", ORANGE: "3E", VERT: "1B", ROSE: "8Y", GRIS: "5H", ROUGE: "6L", MARRON: "7D" },
+82: { BLEU: "3B", NOIR: "2F", ORANGE: "1Z", VERT: "4M", ROSE: "6J", GRIS: "7P", ROUGE: "5U", MARRON: "8O" },
+83: { BLEU: "5N", NOIR: "6R", ORANGE: "7L", VERT: "8D", ROSE: "3E", GRIS: "4G", ROUGE: "1C", MARRON: "2Y" },
+84: { BLEU: "1M", NOIR: "3H", ORANGE: "4K", VERT: "2W", ROSE: "5A", GRIS: "8X", ROUGE: "7F", MARRON: "6T" },
+85: { BLEU: "7D", NOIR: "5S", ORANGE: "8U", VERT: "6O", ROSE: "1Z", GRIS: "2B", ROUGE: "4R", MARRON: "3J" },
+87: { BLEU: "8O", NOIR: "7G", ORANGE: "6F", VERT: "5T", ROSE: "4K", GRIS: "3M", ROUGE: "2S", MARRON: "1A" },
+88: { BLEU: "6Y", NOIR: "1X", ORANGE: "7R", VERT: "3J", ROSE: "8U", GRIS: "5D", ROUGE: "2P", MARRON: "4Z" },
+89: { BLEU: "8T", NOIR: "4B", ORANGE: "5H", VERT: "6E", ROSE: "1C", GRIS: "3W", ROUGE: "7G", MARRON: "2L" },
+90: { BLEU: "1J", NOIR: "2N", ORANGE: "3S", VERT: "8A", ROSE: "4F", GRIS: "6O", ROUGE: "5X", MARRON: "7K" },
+92: { BLEU: "2A", NOIR: "5D", ORANGE: "8G", VERT: "4L", ROSE: "7H", GRIS: "1T", ROUGE: "6N", MARRON: "3C" },
+93: { BLEU: "7Z", NOIR: "3W", ORANGE: "1X", VERT: "2K", ROSE: "5S", GRIS: "4J", ROUGE: "8M", MARRON: "6F" },
+94: { BLEU: "5L", NOIR: "6O", ORANGE: "4B", VERT: "7U", ROSE: "3P", GRIS: "2E", ROUGE: "1D", MARRON: "8R" },
+96: { BLEU: "1U", NOIR: "3T", ORANGE: "2M", VERT: "6F", ROSE: "8X", GRIS: "7Z", ROUGE: "5O", MARRON: "4S" },
+97: { BLEU: "3C", NOIR: "2J", ORANGE: "8D", VERT: "5R", ROSE: "7B", GRIS: "6L", ROUGE: "4Y", MARRON: "1P" },
+98: { BLEU: "2F", NOIR: "8E", ORANGE: "7W", VERT: "4H", ROSE: "6N", GRIS: "5K", ROUGE: "1T", MARRON: "3G" },
+99: { BLEU: "8R", NOIR: "7A", ORANGE: "6O", VERT: "1S", ROSE: "5M", GRIS: "4U", ROUGE: "3J", MARRON: "2X" },
+100: { BLEU: "7H", NOIR: "6Z", ORANGE: "5Y", VERT: "3P", ROSE: "4D", GRIS: "1C", ROUGE: "2E", MARRON: "8B" },
+101: { BLEU: "6S", NOIR: "5L", ORANGE: "4T", VERT: "2G", ROSE: "1W", GRIS: "3F", ROUGE: "8A", MARRON: "7N" },
+102: { BLEU: "5P", NOIR: "4K", ORANGE: "1J", VERT: "8X", ROSE: "3O", GRIS: "2R", ROUGE: "7Z", MARRON: "6M" },
+103: { BLEU: "4G", NOIR: "1U", ORANGE: "3E", VERT: "7B", ROSE: "2Y", GRIS: "8H", ROUGE: "6L", MARRON: "5D" },
+104: { BLEU: "1X", NOIR: "3C", ORANGE: "6A", VERT: "4N", ROSE: "8T", GRIS: "2S", ROUGE: "7K", MARRON: "5W" },
+105: { BLEU: "4B", NOIR: "2F", ORANGE: "3Z", VERT: "5M", ROSE: "6J", GRIS: "7P", ROUGE: "1U", MARRON: "8O" },
+106: { BLEU: "5N", NOIR: "7R", ORANGE: "2L", VERT: "8D", ROSE: "3E", GRIS: "1G", ROUGE: "4C", MARRON: "6Y" },
+107: { BLEU: "8M", NOIR: "1H", ORANGE: "7K", VERT: "6W", ROSE: "2A", GRIS: "4X", ROUGE: "5F", MARRON: "3T" }};
+const NOMBRE_BALISES_SAISIE = 5;
+const NOMBRE_PARCOURS = 25;
+const TEACHER_CODE = "16170";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD3Cu1X0_JSF1qePFRzcq-RY-MYTB32a-8",
+  authDomain: "co-rouillac.firebaseapp.com",
+  projectId: "co-rouillac",
+  storageBucket: "co-rouillac.firebasestorage.app",
+  messagingSenderId: "729910930573",
+  appId: "1:729910930573:web:f8c0e93c702416fcd446c4"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let unsubscribeFromResults = null;
+let currentActiveLessonId = null;
+let currentTeacherLesson = null;
+let currentStudentMap = {};
+let teacherAccessGranted = false;
+
+const studentView = document.getElementById("studentView");
+const teacherDashboard = document.getElementById("teacherDashboard");
+const teacherLoginContainer = document.getElementById("teacherLoginContainer");
+const studentViewBtn = document.getElementById("studentViewBtn");
+const teacherViewBtn = document.getElementById("teacherViewBtn");
+const globalError = document.getElementById("globalError");
+const activeLessonBanner = document.getElementById("activeLessonBanner");
+const classeSelect = document.getElementById("classeSelect");
+const teamSelect = document.getElementById("teamSelect");
+const parcoursSelect = document.getElementById("parcoursSelect");
+const durationMinutesInput = document.getElementById("durationMinutes");
+const durationSecondsInput = document.getElementById("durationSeconds");
+const tagForm = document.getElementById("tagForm");
+const submitBtn = document.getElementById("submitBtn");
+const resultsList = document.getElementById("resultsList");
+const scoreArea = document.getElementById("scoreArea");
+const teacherCodeInput = document.getElementById("teacherCodeInput");
+const teacherCodeSubmitBtn = document.getElementById("teacherCodeSubmitBtn");
+const teacherCodeError = document.getElementById("teacherCodeError");
+const startLessonBtn = document.getElementById("startLessonBtn");
+const loadHistoryBtn = document.getElementById("loadHistoryBtn");
+const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
+const exportPdfBtn = document.getElementById("exportPdfBtn");
+const closeLessonBtn = document.getElementById("closeLessonBtn");
+const lessonStatus = document.getElementById("lessonStatus");
+const resultsTableBody = document.getElementById("resultsTableBody");
+const historyPanel = document.getElementById("historyPanel");
+const historyTableBody = document.getElementById("historyTableBody");
+const newClassNameInput = document.getElementById("newClassNameInput");
+const classCsvInput = document.getElementById("classCsvInput");
+const createClassBtn = document.getElementById("createClassBtn");
+const refreshClassesBtn = document.getElementById("refreshClassesBtn");
+const classesListContainer = document.getElementById("classesListContainer");
+const classManagerMessage = document.getElementById("classManagerMessage");
+
+function showGlobalError(message, type = "error") {
+  globalError.textContent = message || "";
+  globalError.className = "message " + type;
+}
+
+function setClassManagerMessage(message, type = "success") {
+  classManagerMessage.textContent = message || "";
+  classManagerMessage.className = "message " + type;
+}
+
+function clearMessages() {
+  showGlobalError("");
+  setClassManagerMessage("");
+}
+
+function showView(viewName) {
+  studentView.classList.add("hidden");
+  teacherDashboard.classList.add("hidden");
+  teacherLoginContainer.classList.add("hidden");
+  studentViewBtn.classList.remove("active");
+  teacherViewBtn.classList.remove("active");
+
+  if (viewName === "student") {
+    studentView.classList.remove("hidden");
+    studentViewBtn.classList.add("active");
+  } else if (viewName === "teacher") {
+    teacherDashboard.classList.remove("hidden");
+    teacherViewBtn.classList.add("active");
+  } else {
+    teacherLoginContainer.classList.remove("hidden");
+    teacherViewBtn.classList.add("active");
+  }
+}
+
+window.openTeacherAccess = function() {
+  showView(teacherAccessGranted ? "teacher" : "teacherLogin");
+};
+
+studentViewBtn.addEventListener("click", function() { showView("student"); });
+teacherViewBtn.addEventListener("click", function() { window.openTeacherAccess(); });
+teacherCodeSubmitBtn.addEventListener("click", function() {
+  if (teacherCodeInput.value === TEACHER_CODE) {
+    teacherAccessGranted = true;
+    teacherCodeError.textContent = "";
+    teacherCodeInput.value = "";
+    showView("teacher");
+    loadClassesOverview();
+    if (currentActiveLessonId) openLesson(currentActiveLessonId);
+  } else {
+    teacherCodeError.textContent = "Code incorrect.";
+  }
+});
+teacherCodeInput.addEventListener("keydown", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    teacherCodeSubmitBtn.click();
+  }
+});
+
+function populateParcours() {
+  parcoursSelect.innerHTML = '<option value="">Choisir un parcours</option>';
+  for (let i = 1; i <= NOMBRE_PARCOURS; i++) {
+    const option = document.createElement("option");
+    option.value = "Parcours " + i;
+    option.textContent = "Parcours " + i;
+    parcoursSelect.appendChild(option);
+  }
+}
+
+function resetFormForNewEntry() {
+  tagForm.reset();
+  resultsList.innerHTML = "";
+  scoreArea.innerHTML = "";
+  scoreArea.classList.add("hidden");
+  teamSelect.innerHTML = `<option value="">Choisir d'abord une classe</option>`;
+  parcoursSelect.selectedIndex = 0;
+}
+
+function formatTime(minutes, secondes) {
+  return String(minutes).padStart(2, "0") + ":" + String(secondes).padStart(2, "0");
+}
+
+function verifyTags() {
+  let correctes = 0;
+  let tentatives = 0;
+  resultsList.innerHTML = "";
+
+  for (let i = 0; i < NOMBRE_BALISES_SAISIE; i++) {
+    const num = document.getElementById("baliseNum" + i).value;
+    const couleur = document.getElementById("baliseCouleur" + i).value;
+    const code = document.getElementById("baliseCode" + i).value.trim().toUpperCase();
+    if (!num && !couleur && !code) continue;
+    tentatives++;
+
+    let message = "";
+    let resultClass = "result-missing";
+
+    if (num && couleur && code) {
+      const numInt = parseInt(num, 10);
+      if (DONNEES_SHEET[numInt] && DONNEES_SHEET[numInt][couleur] === code) {
+        message = "Balise " + num + " (" + couleur + ") : ✅ CORRECT";
+        resultClass = "result-correct";
+        correctes++;
+      } else {
+        message = "Balise " + num + " (" + couleur + ") : ❌ INCORRECT";
+        resultClass = "result-incorrect";
+      }
+    } else {
+      message = "Balise " + (i + 1) + " : ⚠️ Informations incomplètes";
+      resultClass = "result-missing";
+    }
+
+    const li = document.createElement("li");
+    li.className = resultClass;
+    li.textContent = message;
+    resultsList.appendChild(li);
+  }
+  return { correctes, tentatives };
+}
+
+function displayLocalResults(correctes, tentatives, minutes, secondes) {
+  scoreArea.classList.remove("hidden");
+  scoreArea.innerHTML = "Score : " + correctes + "/" + tentatives + " balise(s) valide(s) — Temps : " + formatTime(minutes, secondes);
+}
+
+function slugifyClassId(name) {
+  return name.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").toUpperCase();
+}
+
+function detectDelimiter(text) {
+  const firstLine = (text || "").split(/\r?\n/).find(line => line.trim().length > 0) || "";
+  const candidates = [";", ",", "	"];
+  let best = ";";
+  let bestCount = -1;
+  candidates.forEach(function(delim) {
+    const count = firstLine.split(delim).length;
+    if (count > bestCount) { best = delim; bestCount = count; }
+  });
+  return best;
+}
+
+function splitCSVLine(line, delimiter) {
+  const result = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const next = line[i + 1];
+    if (char === '"') {
+      if (inQuotes && next === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if (char === delimiter && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result.map(value => value.replace(/^"|"$/g, "").trim());
+}
+
+function normalizeHeader(value) {
+  return (value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function findHeaderIndex(headers, possibleNames) {
+  const normalized = headers.map(normalizeHeader);
+  return normalized.findIndex(function(h) { return possibleNames.includes(h); });
+}
+
+function parsePronoteCSV(text) {
+  const cleanText = (text || "").replace(/^﻿/, "").trim();
+  if (!cleanText) throw new Error("Le fichier est vide.");
+
+  const delimiter = detectDelimiter(cleanText);
+  const lines = cleanText.split(/\r?\n/).filter(line => line.trim().length > 0);
+  if (lines.length < 2) throw new Error("Le fichier doit contenir un en-tête et au moins une ligne élève.");
+
+  const headers = splitCSVLine(lines[0], delimiter);
+  const elevesIndex = findHeaderIndex(headers, ["eleves", "eleve", "listeeleves"]);
+  const nomIndex = findHeaderIndex(headers, ["nom", "elevenom", "nomdeleleve", "lastname"]);
+  const prenomIndex = findHeaderIndex(headers, ["prenom", "prenoms", "eleveprenom", "prenomdeleleve", "firstname"]);
+
+  const students = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = splitCSVLine(lines[i], delimiter);
+
+    if (elevesIndex !== -1) {
+      const fullName = (cols[elevesIndex] || "").trim();
+      if (!fullName) continue;
+
+      const parts = fullName.split(/\s+/).filter(Boolean);
+      if (parts.length === 0) continue;
+
+      let prenom = parts.pop() || "";
+      let nom = parts.join(" ").trim();
+
+      if (!nom) {
+        nom = prenom;
+        prenom = "";
+      }
+
+      students.push({
+        nom: nom,
+        prenom: prenom,
+        nomComplet: fullName
+      });
+      continue;
+    }
+
+    if (nomIndex !== -1 || prenomIndex !== -1) {
+      const nom = nomIndex !== -1 ? (cols[nomIndex] || "").trim() : "";
+      const prenom = prenomIndex !== -1 ? (cols[prenomIndex] || "").trim() : "";
+      if (!nom && !prenom) continue;
+      students.push({
+        nom: nom,
+        prenom: prenom,
+        nomComplet: ((nom ? nom.toUpperCase() : "") + " " + prenom).trim()
+      });
+    }
+  }
+
+  const seen = new Set();
+  const dedup = [];
+  students.forEach(function(student) {
+    const key = (student.nomComplet || (student.nom + "__" + student.prenom)).toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      dedup.push(student);
+    }
+  });
+
+  dedup.sort(function(a, b) {
+    return (a.nomComplet || "").localeCompare((b.nomComplet || ""), "fr");
+  });
+
+  if (dedup.length === 0) throw new Error("Aucun élève exploitable trouvé dans le fichier.");
+  return dedup;
+}
+
+function readSelectedFile(file) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function() { resolve(reader.result); };
+    reader.onerror = function() { reject(new Error("Impossible de lire le fichier.")); };
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+async function replaceStudentsForClass(classId, className, students, sourceFileName) {
+  const classRef = db.collection("classes").doc(classId);
+  const existingStudentsSnap = await classRef.collection("eleves").get();
+  let batch = db.batch();
+  let count = 0;
+  for (const doc of existingStudentsSnap.docs) {
+    batch.delete(doc.ref);
+    count++;
+    if (count === 400) { await batch.commit(); batch = db.batch(); count = 0; }
+  }
+  if (count > 0) await batch.commit();
+
+  await classRef.set({
+    classId: classId,
+    className: className,
+    active: true,
+    source: "Pronote CSV",
+    sourceFileName: sourceFileName || "",
+    studentCount: students.length,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true });
+
+  batch = db.batch();
+  count = 0;
+  for (const student of students) {
+    const ref = classRef.collection("eleves").doc();
+    batch.set(ref, {
+      classId: classId,
+      className: className,
+      nom: student.nom,
+      prenom: student.prenom,
+      nomComplet: student.nomComplet,
+      active: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    count++;
+    if (count === 400) { await batch.commit(); batch = db.batch(); count = 0; }
+  }
+  if (count > 0) await batch.commit();
+}
+
+async function deleteClassFully(classId) {
+  const classRef = db.collection("classes").doc(classId);
+  const studentsSnap = await classRef.collection("eleves").get();
+  let batch = db.batch();
+  let count = 0;
+  for (const doc of studentsSnap.docs) {
+    batch.delete(doc.ref);
+    count++;
+    if (count === 400) { await batch.commit(); batch = db.batch(); count = 0; }
+  }
+  if (count > 0) await batch.commit();
+  await classRef.delete();
+}
+
+async function loadStudentClasses() {
+  try {
+    const selected = classeSelect.value;
+    const snap = await db.collection("classes").get();
+    const classes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).filter(item => item.active !== false).sort((a,b) => (a.className || a.id).localeCompare((b.className || b.id), "fr"));
+    classeSelect.innerHTML = '<option value="">Choisir une classe</option>';
+    classes.forEach(function(item) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.className || item.id;
+      classeSelect.appendChild(option);
+    });
+    if (selected && classes.some(item => item.id === selected)) classeSelect.value = selected;
+  } catch (error) {
+    console.error(error);
+    classeSelect.innerHTML = '<option value="">Classes indisponibles</option>';
+  }
+}
+
+async function loadStudentsForSelectedClass() {
+  const classId = classeSelect.value;
+  currentStudentMap = {};
+  if (!classId) {
+    teamSelect.innerHTML = `<option value="">Choisir d'abord une classe</option>`;
+    return;
+  }
+  teamSelect.innerHTML = '<option value="">Chargement des élèves...</option>';
+  const snap = await db.collection("classes").doc(classId).collection("eleves").get();
+  const students = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (a.nomComplet || "").localeCompare((b.nomComplet || ""), "fr"));
+  teamSelect.innerHTML = '<option value="">Choisir un élève</option>';
+  students.forEach(function(student) {
+    currentStudentMap[student.id] = student;
+    const option = document.createElement("option");
+    option.value = student.id;
+    option.textContent = student.nomComplet || ((student.nom || "") + " " + (student.prenom || "")).trim();
+    teamSelect.appendChild(option);
+  });
+}
+
+async function loadClassesOverview() {
+  try {
+    const snap = await db.collection("classes").get();
+    const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => (a.className || a.id).localeCompare((b.className || b.id), "fr"));
+    if (docs.length === 0) {
+      classesListContainer.innerHTML = '<div class="empty-box">Aucune classe enregistrée.</div>';
+      return;
+    }
+    let html = '<table><thead><tr><th>Classe</th><th>Élèves</th><th>Fichier</th><th>Statut</th><th>Action</th></tr></thead><tbody>';
+    docs.forEach(function(item) {
+      html += '<tr>' +
+        '<td>' + (item.className || item.id) + '</td>' +
+        '<td>' + (item.studentCount || 0) + '</td>' +
+        '<td>' + (item.sourceFileName || '—') + '</td>' +
+        '<td><span class="pill ' + (item.active === false ? 'inactive' : 'active') + '">' + (item.active === false ? 'inactive' : 'active') + '</span></td>' +
+        '<td><button class="danger-btn delete-class-btn" data-class-id="' + item.id + '" data-class-name="' + (item.className || item.id).replace(/"/g, '&quot;') + '">Effacer classe</button></td>' +
+      '</tr>';
+    });
+    html += '</tbody></table>';
+    classesListContainer.innerHTML = html;
+    document.querySelectorAll('.delete-class-btn').forEach(function(btn) {
+      btn.addEventListener('click', async function() {
+        const classId = btn.dataset.classId;
+        const className = btn.dataset.className;
+        if (!confirm(`Effacer la classe "${className}" et sa liste d'élèves en ligne ?`)) return;
+        try {
+          await deleteClassFully(classId);
+          setClassManagerMessage('Classe ' + className + ' supprimée.', 'success');
+          await loadClassesOverview();
+          await loadStudentClasses();
+          if (classeSelect.value === classId) teamSelect.innerHTML = `<option value="">Choisir d'abord une classe</option>`;
+        } catch (error) {
+          console.error(error);
+          setClassManagerMessage('Suppression impossible : ' + (error.message || error), 'error');
+        }
+      });
+    });
+  } catch (error) {
+    console.error(error);
+    classesListContainer.innerHTML = '<div class="empty-box">Impossible de charger les classes en ligne.</div>';
+  }
+}
+
+async function createOrUpdateClassFromCsv() {
+  clearMessages();
+  const className = newClassNameInput.value.trim();
+  const file = classCsvInput.files[0];
+  if (!className) { setClassManagerMessage('Saisissez le nom de la classe.', 'error'); return; }
+  if (!file) { setClassManagerMessage('Choisissez le fichier CSV Pronote.', 'error'); return; }
+  const classId = slugifyClassId(className);
+  if (!classId) { setClassManagerMessage('Nom de classe invalide.', 'error'); return; }
+  try {
+    createClassBtn.disabled = true;
+    setClassManagerMessage('Import en cours...', 'success');
+    const text = await readSelectedFile(file);
+    const students = parsePronoteCSV(text);
+    await replaceStudentsForClass(classId, className, students, file.name);
+    newClassNameInput.value = '';
+    classCsvInput.value = '';
+    setClassManagerMessage('Classe ' + className + ' enregistrée avec ' + students.length + ' élève(s).', 'success');
+    await loadClassesOverview();
+    await loadStudentClasses();
+  } catch (error) {
+    console.error(error);
+    setClassManagerMessage(error.message || `Erreur pendant l'import.`, 'error');
+  } finally {
+    createClassBtn.disabled = false;
+  }
+}
+
+classeSelect.addEventListener('change', loadStudentsForSelectedClass);
+createClassBtn.addEventListener('click', createOrUpdateClassFromCsv);
+refreshClassesBtn.addEventListener('click', async function() { await loadClassesOverview(); await loadStudentClasses(); });
+
+async function startLesson() {
+  clearMessages();
+  const lessonName = prompt('Entrez un nom pour cette leçon', 'Leçon du jour');
+  if (!lessonName) return;
+  const now = new Date();
+  const lessonId = 'lecon_' + now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + '_' + lessonName.replace(/\s+/g, '-');
+  try {
+    await db.collection('lecons').doc(lessonId).set({
+      lessonId: lessonId,
+      lessonName: lessonName,
+      lessonDate: now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'),
+      status: 'active',
+      startedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await db.collection('config').doc('activeLesson').set({
+      lessonId: lessonId,
+      lessonName: lessonName,
+      startedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await openLesson(lessonId, lessonName);
+    alert('Leçon "' + lessonName + '" démarrée.');
+  } catch (error) {
+    console.error(error);
+    alert('Erreur lors du démarrage : ' + (error.message || error));
+  }
+}
+startLessonBtn.addEventListener('click', startLesson);
+
+async function openLesson(lessonId, lessonName) {
+  currentTeacherLesson = { id: lessonId, name: lessonName || lessonId };
+  if (!lessonName) {
+    const doc = await db.collection('lecons').doc(lessonId).get();
+    if (doc.exists) currentTeacherLesson.name = doc.data().lessonName || lessonId;
+  }
+  if (unsubscribeFromResults) unsubscribeFromResults();
+  lessonStatus.textContent = 'Leçon : ' + currentTeacherLesson.name;
+  lessonStatus.className = 'pill active';
+  exportCsvBtn.disabled = false;
+  exportPdfBtn.disabled = false;
+  closeLessonBtn.disabled = false;
+  resultsTableBody.innerHTML = '';
+
+  unsubscribeFromResults = db.collection('lecons').doc(lessonId).collection('resultats').onSnapshot(function(snapshot) {
+    const docs = snapshot.docs.map(doc => doc.data());
+    docs.sort(function(a,b) {
+      const ta = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0;
+      const tb = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate().getTime() : 0;
+      return ta - tb;
+    });
+    resultsTableBody.innerHTML = '';
+    docs.forEach(function(item) {
+      const tr = document.createElement('tr');
+      const score = String(item.scoreCorrectes || 0) + '/' + String(item.scoreTentatives || 0);
+      const temps = formatTime(item.tempsMinutes || 0, item.tempsSecondes || 0);
+      const heure = item.timestamp && item.timestamp.toDate ? item.timestamp.toDate().toLocaleTimeString('fr-FR') : '—';
+      tr.innerHTML = '<td>' + (item.classeLabel || item.classe || '—') + '</td>' +
+        '<td>' + (item.eleveNomComplet || item.eleveId || '—') + '</td>' +
+        '<td>' + (item.parcoursId || '—') + '</td>' +
+        '<td>' + score + '</td>' +
+        '<td>' + temps + '</td>' +
+        '<td>' + heure + '</td>';
+      resultsTableBody.appendChild(tr);
+    });
+  }, function(error) {
+    console.error(error);
+    lessonStatus.textContent = 'Erreur Firestore';
+    lessonStatus.className = 'pill inactive';
+  });
+}
+
+async function loadHistory() {
+  historyPanel.classList.remove('hidden');
+  historyTableBody.innerHTML = '<tr><td colspan="4">Chargement...</td></tr>';
+  const snap = await db.collection('lecons').get();
+  const lessons = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => {
+    const da = a.startedAt && a.startedAt.toDate ? a.startedAt.toDate().getTime() : 0;
+    const dbb = b.startedAt && b.startedAt.toDate ? b.startedAt.toDate().getTime() : 0;
+    return dbb - da;
+  });
+  if (lessons.length === 0) {
+    historyTableBody.innerHTML = '<tr><td colspan="4">Aucune leçon enregistrée.</td></tr>';
+    return;
+  }
+  historyTableBody.innerHTML = '';
+  lessons.forEach(function(item) {
+    const tr = document.createElement('tr');
+    const dateText = item.startedAt && item.startedAt.toDate ? item.startedAt.toDate().toLocaleString('fr-FR') : (item.lessonDate || '—');
+    tr.innerHTML = '<td>' + (item.lessonName || item.id) + '</td>' +
+      '<td>' + dateText + '</td>' +
+      '<td>' + (item.status || 'active') + '</td>' +
+      '<td><button class="success-btn history-open-btn" data-id="' + item.id + '" data-name="' + (item.lessonName || item.id).replace(/"/g, '&quot;') + '">Rouvrir</button></td>';
+    historyTableBody.appendChild(tr);
+  });
+  document.querySelectorAll('.history-open-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      const lessonId = btn.dataset.id;
+      const lessonName = btn.dataset.name;
+      await db.collection('config').doc('activeLesson').set({
+        lessonId: lessonId,
+        lessonName: lessonName,
+        reopenedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      await db.collection('lecons').doc(lessonId).set({ status: 'active' }, { merge: true });
+      await openLesson(lessonId, lessonName);
+      historyPanel.classList.add('hidden');
+    });
+  });
+}
+loadHistoryBtn.addEventListener('click', loadHistory);
+closeHistoryBtn.addEventListener('click', function() { historyPanel.classList.add('hidden'); });
+
+closeLessonBtn.addEventListener('click', async function() {
+  const lessonId = currentTeacherLesson && currentTeacherLesson.id ? currentTeacherLesson.id : currentActiveLessonId;
+  const lessonName = currentTeacherLesson && currentTeacherLesson.name ? currentTeacherLesson.name : 'cette séance';
+  if (!lessonId) { alert('Aucune séance active à clôturer.'); return; }
+  if (!confirm('Clôturer la séance "' + lessonName + '" ?')) return;
+  try {
+    await db.collection('lecons').doc(lessonId).set({
+      status: 'closed',
+      closedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    await db.collection('config').doc('activeLesson').delete();
+    if (unsubscribeFromResults) { unsubscribeFromResults(); unsubscribeFromResults = null; }
+    currentActiveLessonId = null;
+    currentTeacherLesson = null;
+    lessonStatus.textContent = 'Aucune leçon active';
+    lessonStatus.className = 'pill inactive';
+    resultsTableBody.innerHTML = '';
+    exportCsvBtn.disabled = true;
+    exportPdfBtn.disabled = true;
+    closeLessonBtn.disabled = true;
+    alert('Séance clôturée.');
+  } catch (error) {
+    console.error(error);
+    alert('Clôture impossible : ' + (error.message || error));
+  }
+});
+
+function getTableRowsData() {
+  return Array.from(resultsTableBody.querySelectorAll('tr')).map(function(row) {
+    return Array.from(row.querySelectorAll('td')).map(td => td.innerText);
+  });
+}
+
+exportCsvBtn.addEventListener('click', function() {
+  const data = getTableRowsData();
+  if (data.length === 0) { alert('Aucun résultat à exporter.'); return; }
+  const lessonName = currentTeacherLesson && currentTeacherLesson.name ? currentTeacherLesson.name : 'resultats';
+  const lines = ['Classe;Élève;Parcours;Score;Temps;Heure'];
+  data.forEach(function(row) {
+    lines.push(row.map(value => '"' + String(value || '').replace(/"/g, '""') + '"').join(';'));
+  });
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'resultats_' + lessonName.replace(/\s+/g, '_') + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+exportPdfBtn.addEventListener('click', function() {
+  const data = getTableRowsData();
+  if (data.length === 0) { alert('Aucun résultat à exporter.'); return; }
+  const jsPDF = window.jspdf.jsPDF;
+  const doc = new jsPDF();
+  const lessonName = currentTeacherLesson && currentTeacherLesson.name ? currentTeacherLesson.name : 'Résultats';
+  doc.text('Résultats - ' + lessonName, 14, 18);
+  doc.autoTable({
+    startY: 24,
+    head: [['Classe','Élève','Parcours','Score','Temps','Heure']],
+    body: data,
+    theme: 'striped',
+    headStyles: { fillColor: [88, 129, 87] },
+    styles: { fontSize: 9 }
+  });
+  doc.save('resultats_' + lessonName.replace(/\s+/g, '_') + '.pdf');
+});
+
+async function submitStudentResult(event) {
+  event.preventDefault();
+  clearMessages();
+  const lessonId = currentActiveLessonId;
+  if (!lessonId) { showGlobalError(`Aucune leçon n'est démarrée. Le professeur doit lancer ou rouvrir une séance.`, 'error'); return; }
+  const classId = classeSelect.value;
+  const classLabel = classeSelect.options[classeSelect.selectedIndex] ? classeSelect.options[classeSelect.selectedIndex].text : '';
+  const studentId = teamSelect.value;
+  const student = currentStudentMap[studentId];
+  const parcoursId = parcoursSelect.value;
+  const durationM = durationMinutesInput.value;
+  const durationS = durationSecondsInput.value;
+  if (!classId || !studentId || !parcoursId || durationM === '' || durationS === '') { showGlobalError(`Veuillez remplir tous les champs d'identification et le temps.`, 'error'); return; }
+  const minutes = parseInt(durationM, 10);
+  const secondes = parseInt(durationS, 10);
+  if (isNaN(minutes) || isNaN(secondes) || minutes < 0 || secondes < 0 || secondes > 59) { showGlobalError('Temps invalide : secondes entre 0 et 59.', 'error'); return; }
+  if (minutes === 0 && secondes === 0) { showGlobalError('Le temps de course ne peut pas être zéro.', 'error'); return; }
+  const verify = verifyTags();
+  const correctes = verify.correctes;
+  const tentatives = verify.tentatives;
+  if (tentatives === 0) { showGlobalError('Veuillez saisir au moins une balise.', 'error'); return; }
+  displayLocalResults(correctes, tentatives, minutes, secondes);
+
+  const payload = {
+    lessonId: lessonId,
+    classe: classId,
+    classeLabel: classLabel,
+    eleveId: studentId,
+    eleveNomComplet: student ? student.nomComplet : (teamSelect.options[teamSelect.selectedIndex] ? teamSelect.options[teamSelect.selectedIndex].text : ''),
+    eleveNom: student ? student.nom : '',
+    elevePrenom: student ? student.prenom : '',
+    parcoursId: parcoursId,
+    scoreCorrectes: correctes,
+    scoreTentatives: tentatives,
+    tempsMinutes: minutes,
+    tempsSecondes: secondes,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Envoi en cours...';
+    await db.collection('lecons').doc(lessonId).collection('resultats').add(payload);
+    showGlobalError('', 'success');
+    setTimeout(function() { resetFormForNewEntry(); }, 5000);
+  } catch (error) {
+    console.error(error);
+    showGlobalError(`Impossible d'envoyer les résultats. Vérifiez la connexion.`, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '🚀 Vérifier et envoyer le résultat';
+  }
+}
+tagForm.addEventListener('submit', submitStudentResult);
+
+function listenToActiveLesson() {
+  db.collection('config').doc('activeLesson').onSnapshot(function(doc) {
+    if (doc.exists && doc.data().lessonId) {
+      const data = doc.data();
+      currentActiveLessonId = data.lessonId;
+      activeLessonBanner.textContent = 'Leçon en cours : ' + (data.lessonName || data.lessonId);
+      activeLessonBanner.style.backgroundColor = '#344e41';
+    } else {
+      currentActiveLessonId = null;
+      activeLessonBanner.textContent = 'Aucune leçon démarrée — attendez le professeur';
+      activeLessonBanner.style.backgroundColor = '#c1121f';
+      if (!currentTeacherLesson) {
+        lessonStatus.textContent = 'Aucune leçon active';
+        lessonStatus.className = 'pill inactive';
+      }
+    }
+  }, function(error) {
+    console.error(error);
+    activeLessonBanner.textContent = 'Connexion Firestore indisponible';
+    activeLessonBanner.style.backgroundColor = '#c1121f';
+  });
+}
+
+async function init() {
+  populateParcours();
+  showView('student');
+  await loadStudentClasses();
+  await loadClassesOverview();
+  listenToActiveLesson();
+}
+init();
+</script>
+</body>
+</html>
